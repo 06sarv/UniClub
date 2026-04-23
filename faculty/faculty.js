@@ -1118,7 +1118,14 @@ async function publishFacultyPost() {
       try {
         imageUrl = await UniClubAPI.uploadPostImage(postImageFile);
       } catch (e) {
-        console.warn('Image upload failed, posting without image:', e);
+        openDeleteModal({
+          title: 'Image Upload Failed',
+          message: (e && e.message) ? e.message : 'Unable to upload the image. Check storage permissions and try again.',
+          confirmText: 'OK',
+          hideCancel: true,
+          onConfirm: () => {},
+        });
+        return;
       }
     }
 

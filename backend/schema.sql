@@ -319,3 +319,28 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- =====================================================================
+-- 9. STORAGE (Post Images)
+-- =====================================================================
+-- Create bucket if it doesn't exist
+insert into storage.buckets (id, name, public)
+values ('uniclub', 'uniclub', true)
+on conflict (id) do nothing;
+
+-- Storage policies (requires RLS on storage.objects)
+create policy "Public read access for post images"
+  on storage.objects for select
+  using (bucket_id = 'uniclub');
+
+create policy "Authenticated users can upload post images"
+  on storage.objects for insert
+  with check (bucket_id = 'uniclub' and auth.role() = 'authenticated');
+
+create policy "Authenticated users can update own images"
+  on storage.objects for update
+  using (bucket_id = 'uniclub' and owner = auth.uid());
+
+create policy "Authenticated users can delete own images"
+  on storage.objects for delete
+  using (bucket_id = 'uniclub' and owner = auth.uid());

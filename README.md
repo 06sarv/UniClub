@@ -2,8 +2,16 @@
 
 A full-stack university club management platform built with vanilla JavaScript and Supabase. UniClub connects students with campus organizations through personalized recommendations, community feeds, and faculty-managed club administration.
 
-![signup](image.png) ![Home-student](image-1.png)![explore](image-2.png) ![explore2](image-3.png)
+## IMAGES
+**STUDENT**
+![signup](image.png) !![questionnaire](image-6.png)[Home-student](image-1.png)![explore](image-2.png) ![explore2](image-3.png)
 ![community](image-4.png)
+![compare](image-5.png)
+
+**FACULTY**
+![home-faculty](image-7.png)
+![manage clubs](image-8.png)
+![posts](image-9.png)
 
 ## Table of Contents
 
