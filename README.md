@@ -4,7 +4,7 @@ A full-stack university club management platform built with vanilla JavaScript a
 
 ## IMAGES
 **STUDENT**
-![signup](image.png) ![questionnaire](image-6.png)[Home-student](image-1.png)![explore](image-2.png) ![explore2](image-3.png)
+![signup](image.png) ![questionnaire](image-6.png)![Home-student](image-1.png)![explore](image-2.png)![explore2](image-3.png)
 ![community](image-4.png)
 ![compare](image-5.png)
 
