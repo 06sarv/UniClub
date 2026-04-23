@@ -64,22 +64,23 @@
 <script src="../js/components.js"></script>
 <script src="../js/app.js"></script>
 <script>
-// Override initExplore to load featured + optional recommended
+// Override initExplore to load personalized featured cards
 const _origInitExplore = initExplore;
 initExplore = async function() {
   await _origInitExplore();
 
-  // Render featured cards from first 3 clubs with hiring status
-  const featured = clubs.filter(c => c.status === 'ACTIVE HIRING' || c.status === 'AUDITIONS OPEN').slice(0, 3);
   const fc = document.getElementById('featuredCards');
-  if (fc && featured.length > 0) {
-    const badgeColors = { 'ACTIVE HIRING': 'var(--blue)', 'AUDITIONS OPEN': 'var(--black)', 'CLOSING SOON': '#dc2626' };
-    fc.innerHTML = featured.map(c => `
+  if (!fc) return;
+
+  const badgeColors = { 'ACTIVE HIRING': 'var(--blue)', 'AUDITIONS OPEN': 'var(--black)', 'CLOSING SOON': '#dc2626' };
+
+  function renderFeaturedCards(list) {
+    fc.innerHTML = list.map(c => `
       <div class="featured-card" onclick="openModal('${c.slug}')">
         <div class="featured-card-badge" style="background:${badgeColors[c.status] || 'var(--blue)'}">${c.status}</div>
         <div class="featured-card-header">
           <div class="featured-card-icon" style="background:${getCategoryColor(c.category)}">${getClubIcon(c.slug)}</div>
-          <div class="featured-card-dept">${c.domain}</div>
+          <div class="featured-card-dept">${c.domain || c.category}</div>
         </div>
         <div class="featured-card-title">${c.name}</div>
         <div class="featured-card-body">${(c.description || '').slice(0, 100)}…</div>
@@ -91,48 +92,78 @@ initExplore = async function() {
     `).join('');
   }
 
-  // If coming from quiz, show recommended clubs
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('recommended') === 'true') {
-    document.getElementById('exploreTitle').textContent = 'Your Club Matches';
-    document.getElementById('exploreSubtitle').textContent = 'Here are the clubs that match your quiz responses. Browse all clubs below too.';
-    document.getElementById('recommendedSection').style.display = 'block';
+  try {
+    const user = await UniClubAPI.getUser();
+    if (!user) {
+      // Not logged in — show most popular
+      const popular = clubs
+        .filter(c => c.status !== 'CLOSED')
+        .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
+        .slice(0, 3);
+      renderFeaturedCards(popular);
+      return;
+    }
 
-    try {
-      const user = await UniClubAPI.getUser();
-      let recommended = [];
-      if (user) {
-        const profile = await UniClubAPI.getMyProfile();
-        const memberships = await UniClubAPI.getMyMemberships();
-        const joinedClubIds = new Set(memberships.map(m => m.club_id));
-        const allClubs = await UniClubAPI.getAllClubs();
+    const profile = await UniClubAPI.getMyProfile();
+    const memberships = await UniClubAPI.getMyMemberships();
+    const joinedClubIds = new Set(memberships.map(m => m.club_id));
 
-        const userTags = [
-          ...(profile.quiz_interests || []),
-          ...(profile.quiz_focus || [])
-        ].map(t => t.toLowerCase());
+    const userTags = [
+      ...(profile.quiz_interests || []),
+      ...(profile.quiz_focus || [])
+    ].map(t => t.toLowerCase().trim());
 
-        const scoredClubs = allClubs
-          .filter(c => c.status !== 'CLOSED' && !joinedClubIds.has(c.id))
-          .map(c => {
-            let score = 0;
-            const clubTags = (c.tags || []).map(t => t.toLowerCase());
-            userTags.forEach(ut => {
-              if (clubTags.some(ct => ct === ut || ct.includes(ut) || ut.includes(ct))) score++;
-            });
-            return { ...c, score };
+    // If quiz was never taken, show most popular clubs the user hasn't joined
+    if (userTags.length === 0) {
+      const popular = clubs
+        .filter(c => c.status !== 'CLOSED' && !joinedClubIds.has(c.id))
+        .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
+        .slice(0, 3);
+      renderFeaturedCards(popular);
+      return;
+    }
+
+    // Score clubs by tag overlap with quiz answers
+    const scored = clubs
+      .filter(c => c.status !== 'CLOSED' && !joinedClubIds.has(c.id))
+      .map(c => {
+        let score = 0;
+        const clubTags = (c.tags || []).map(t => t.toLowerCase().trim());
+        userTags.forEach(ut => {
+          clubTags.forEach(ct => {
+            if (ct === ut) score += 3;              // exact match
+            else if (ct.includes(ut) || ut.includes(ct)) score += 1; // partial match
           });
+        });
+        return { ...c, score };
+      })
+      .filter(c => c.score > 0)
+      .sort((a, b) => b.score - a.score || (b.member_count || 0) - (a.member_count || 0));
 
-        recommended = scoredClubs
-          .filter(c => c.score > 0)
-          .sort((a, b) => b.score - a.score || (b.member_count || 0) - (a.member_count || 0))
-          .slice(0, 6);
-      }
+    const topMatches = scored.slice(0, 3);
 
+    if (topMatches.length > 0) {
+      renderFeaturedCards(topMatches);
+    } else {
+      // No tag matches — show popular clubs the user hasn't joined
+      const popular = clubs
+        .filter(c => c.status !== 'CLOSED' && !joinedClubIds.has(c.id))
+        .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
+        .slice(0, 3);
+      renderFeaturedCards(popular);
+    }
+
+    // If coming from quiz, also populate the dedicated recommended section
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('recommended') === 'true') {
+      document.getElementById('exploreTitle').textContent = 'Your Club Matches';
+      document.getElementById('exploreSubtitle').textContent = 'Here are the clubs that match your quiz responses. Browse all clubs below too.';
+
+      const extraMatches = scored.slice(0, 6);
       const grid = document.getElementById('recommendedClubGrid');
-      if (recommended.length > 0) {
-        const badgeColors = { 'ACTIVE HIRING': 'var(--blue)', 'AUDITIONS OPEN': 'var(--black)', 'CLOSING SOON': '#dc2626' };
-        grid.innerHTML = recommended.map(c => `
+      if (extraMatches.length > 0) {
+        document.getElementById('recommendedSection').style.display = 'block';
+        grid.innerHTML = extraMatches.map(c => `
           <div class="featured-card" onclick="openModal('${c.slug}')">
             <div class="featured-card-badge" style="background:${badgeColors[c.status] || 'var(--blue)'}">${c.status}</div>
             <div class="featured-card-header">
@@ -147,16 +178,19 @@ initExplore = async function() {
             </div>
           </div>
         `).join('');
-        document.getElementById('recommendedClubGrid').style.display = 'flex';
-        document.getElementById('recommendedClubGrid').style.gap = '24px';
-        document.getElementById('recommendedClubGrid').style.flexWrap = 'wrap';
-      } else {
-        grid.innerHTML = '<div style="padding:20px;color:var(--gray)">Pick more interests on the quiz for better matches! Showing all clubs below.</div>';
-        document.getElementById('recommendedSection').style.display = 'none';
+        grid.style.display = 'flex';
+        grid.style.gap = '24px';
+        grid.style.flexWrap = 'wrap';
       }
-    } catch (e) {
-      document.getElementById('recommendedSection').style.display = 'none';
     }
+  } catch (e) {
+    console.error('Recommendation error:', e);
+    // Fallback: show most popular
+    const popular = clubs
+      .filter(c => c.status !== 'CLOSED')
+      .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
+      .slice(0, 3);
+    renderFeaturedCards(popular);
   }
 };
 </script>
