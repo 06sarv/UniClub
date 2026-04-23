@@ -21,3 +21,12 @@ Thumbs.db
 
 # Misc
 *.log
+
+# Project-specific exclusions
+docs/
+backend/seed*.js
+backend/wipe.js
+backend/.env*
+*.xlsx
+split_architecture.py
+ascii-art.png
