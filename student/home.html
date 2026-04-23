@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniClub – Student Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body onload="guardStudentPage('home', 'initStudentHome')">
+  <div id="page-home" class="page-container">
+    <div class="container">
+      <div class="hero">
+        <div>
+          <div class="hero-badge">2025–26 Academic Year</div>
+          <div class="display-xl">Welcome,<br><span class="accent" id="studentGreeting">Student</span>.<br>Find Your Club.</div>
+          <p class="body-text hero-sub">Explore over 50 student-run clubs across departments. Connect, join, and thrive in communities that match your passions.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="showPage('explore')">Explore Clubs →</button>
+            <button class="btn btn-secondary" onclick="showPage('community')">Join Community</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+  async function initStudentHome() {
+    try {
+      const profile = await UniClubAPI.getMyProfile();
+      const firstName = (profile.full_name || 'Student').split(' ')[0];
+      document.getElementById('studentGreeting').textContent = firstName;
+    } catch (e) {
+      console.error('Home init error:', e);
+    }
+  }
+  </script>
+</body>
+</html>

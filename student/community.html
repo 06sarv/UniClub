@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniClub – Community</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body onload="guardStudentPage('community', 'initCommunity')">
+<div id="page-community" class="page-container">
+  <div class="container">
+    <div class="community-header">
+      <div class="label mb-4" style="margin-bottom:6px">Community Feed</div>
+      <div class="display-lg">What's Happening?</div>
+      <p class="body-text mt-4" style="margin-top:8px">Updates, events, and announcements from faculty coordinators across all clubs.</p>
+    </div>
+
+    <div class="section mt-6" style="padding-top:24px" id="communityPostsFeed">
+      <div style="text-align:center;padding:40px;color:var(--gray)">Loading posts…</div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/components.js"></script>
+<script src="../js/app.js"></script>
+<script>
+async function initCommunity() {
+  await loadCommunityPosts();
+  subscribeToRealtimeFeed();
+}
+</script>
+</body>
+</html>

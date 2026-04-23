@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniClub – Explore</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body onload="guardStudentPage('explore','initExplore')">
+<div id="page-explore" class="page-container">
+  <div class="container">
+    <div class="page-header">
+      <div class="label mb-4" style="margin-bottom:6px">Discovery</div>
+      <div class="display-lg" id="exploreTitle">Explore All Clubs</div>
+      <p class="body-text" style="max-width:620px; margin-top:12px;" id="exploreSubtitle">Browse every club space in one place, compare what each one offers, and figure out where you want to join, contribute, or just explore.</p>
+    </div>
+
+    <!-- RECOMMENDED SECTION (shown after quiz) -->
+    <div class="section" id="recommendedSection" style="display:none">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div>
+          <div class="display-md">✦ Matched For You</div>
+          <div class="body-text" style="color:var(--gray); margin-top:4px;">Based on your quiz responses</div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:0.8rem; padding:6px 16px;" onclick="document.getElementById('recommendedSection').style.display='none'">Dismiss</button>
+      </div>
+      <div class="club-grid" id="recommendedClubGrid">
+        <div style="padding:20px;color:var(--gray)">Loading recommendations…</div>
+      </div>
+      <div style="height:1px; background:var(--border); margin: 32px 0;"></div>
+    </div>
+
+    <!-- FEATURED (loaded dynamically) -->
+    <div class="section">
+      <div class="featured-strip">
+        <div class="featured-cards" id="featuredCards">
+          <div style="padding:40px;color:var(--gray);font-size:0.9rem">Loading featured clubs…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="display-md">All Clubs</div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter(this,'all')">All</button>
+      <button class="filter-btn" onclick="setFilter(this,'tech')">Tech</button>
+      <button class="filter-btn" onclick="setFilter(this,'non-tech')">Non-Tech</button>
+      <button class="filter-btn" onclick="setFilter(this,'arts')">Arts</button>
+      <button class="filter-btn" onclick="setFilter(this,'sports')">Sports</button>
+      <button class="filter-btn" onclick="setFilter(this,'alpha')">A–Z</button>
+    </div>
+    <div class="club-grid" id="exploreClubGrid"></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/components.js"></script>
+<script src="../js/app.js"></script>
+<script>
+// Override initExplore to load featured + optional recommended
+const _origInitExplore = initExplore;
+initExplore = async function() {
+  await _origInitExplore();
+
+  // Render featured cards from first 3 clubs with hiring status
+  const featured = clubs.filter(c => c.status === 'ACTIVE HIRING' || c.status === 'AUDITIONS OPEN').slice(0, 3);
+  const fc = document.getElementById('featuredCards');
+  if (fc && featured.length > 0) {
+    const badgeColors = { 'ACTIVE HIRING': 'var(--blue)', 'AUDITIONS OPEN': 'var(--black)', 'CLOSING SOON': '#dc2626' };
+    fc.innerHTML = featured.map(c => `
+      <div class="featured-card" onclick="openModal('${c.slug}')">
+        <div class="featured-card-badge" style="background:${badgeColors[c.status] || 'var(--blue)'}">${c.status}</div>
+        <div class="featured-card-header">
+          <div class="featured-card-icon" style="background:${getCategoryColor(c.category)}">${getClubIcon(c.slug)}</div>
+          <div class="featured-card-dept">${c.domain}</div>
+        </div>
+        <div class="featured-card-title">${c.name}</div>
+        <div class="featured-card-body">${(c.description || '').slice(0, 100)}…</div>
+        <div class="featured-card-footer">
+          ${renderAvatarRow(c.member_count || 0, c.name)}
+          <button class="featured-card-btn">View</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // If coming from quiz, show recommended clubs
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('recommended') === 'true') {
+    document.getElementById('exploreTitle').textContent = 'Your Club Matches';
+    document.getElementById('exploreSubtitle').textContent = 'Here are the clubs that match your quiz responses. Browse all clubs below too.';
+    document.getElementById('recommendedSection').style.display = 'block';
+
+    try {
+      const user = await UniClubAPI.getUser();
+      let recommended = [];
+      if (user) {
+        const profile = await UniClubAPI.getMyProfile();
+        const memberships = await UniClubAPI.getMyMemberships();
+        const joinedClubIds = new Set(memberships.map(m => m.club_id));
+        const allClubs = await UniClubAPI.getAllClubs();
+
+        const userTags = [
+          ...(profile.quiz_interests || []),
+          ...(profile.quiz_focus || [])
+        ].map(t => t.toLowerCase());
+
+        const scoredClubs = allClubs
+          .filter(c => c.status !== 'CLOSED' && !joinedClubIds.has(c.id))
+          .map(c => {
+            let score = 0;
+            const clubTags = (c.tags || []).map(t => t.toLowerCase());
+            userTags.forEach(ut => {
+              if (clubTags.some(ct => ct === ut || ct.includes(ut) || ut.includes(ct))) score++;
+            });
+            return { ...c, score };
+          });
+
+        recommended = scoredClubs
+          .filter(c => c.score > 0)
+          .sort((a, b) => b.score - a.score || (b.member_count || 0) - (a.member_count || 0))
+          .slice(0, 6);
+      }
+
+      const grid = document.getElementById('recommendedClubGrid');
+      if (recommended.length > 0) {
+        const badgeColors = { 'ACTIVE HIRING': 'var(--blue)', 'AUDITIONS OPEN': 'var(--black)', 'CLOSING SOON': '#dc2626' };
+        grid.innerHTML = recommended.map(c => `
+          <div class="featured-card" onclick="openModal('${c.slug}')">
+            <div class="featured-card-badge" style="background:${badgeColors[c.status] || 'var(--blue)'}">${c.status}</div>
+            <div class="featured-card-header">
+              <div class="featured-card-icon" style="background:${getCategoryColor(c.category)}">${getClubIcon(c.slug)}</div>
+              <div class="featured-card-dept">${c.domain || c.category}</div>
+            </div>
+            <div class="featured-card-title">${c.name}</div>
+            <div class="featured-card-body">${(c.description || '').slice(0, 100)}…</div>
+            <div class="featured-card-footer">
+              ${renderAvatarRow(c.member_count || 0, c.name)}
+              <button class="featured-card-btn">View</button>
+            </div>
+          </div>
+        `).join('');
+        document.getElementById('recommendedClubGrid').style.display = 'flex';
+        document.getElementById('recommendedClubGrid').style.gap = '24px';
+        document.getElementById('recommendedClubGrid').style.flexWrap = 'wrap';
+      } else {
+        grid.innerHTML = '<div style="padding:20px;color:var(--gray)">Pick more interests on the quiz for better matches! Showing all clubs below.</div>';
+        document.getElementById('recommendedSection').style.display = 'none';
+      }
+    } catch (e) {
+      document.getElementById('recommendedSection').style.display = 'none';
+    }
+  }
+};
+</script>
+</body>
+</html>
+
