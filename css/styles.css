@@ -621,7 +621,6 @@ body.auth-screen {
 /* ===================== AUTH PAGE ===================== */
 #page-auth {
   min-height: 100vh;
-  height: 100vh;
   display: none;
   grid-template-columns: 1fr 1fr;
 }
