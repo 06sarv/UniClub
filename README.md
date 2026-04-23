@@ -196,3 +196,7 @@ The anon key is safe to expose in frontend code — Supabase RLS policies enforc
 ## License
 
 This project is part of an academic coursework submission.
+
+---
+
+Made with ❤️by sarv and shel
